@@ -217,6 +217,8 @@ _getopts() {
 					lists=?*) OPT_LISTS="$LONG_OPTARG" ;;
 					mail=?*) OPT_MAIL="$LONG_OPTARG" ;;
 					repo=?*) OPT_CUSTOM_REPO="$LONG_OPTARG" ;;
+					missing-repositories) OPT_MISSING_REPO="$LONG_OPTARG";;
+					skip-repo=?*) OPT_SKIP_REPO="$LONG_OPTARG";;
 					reboot) OPT_REBOOT=1 ;;
 					remove=?*) OPT_REMOVE="$LONG_OPTARG" ;;
 					security) OPT_SECURITY=1 ;;
@@ -226,12 +228,12 @@ _getopts() {
 					version) echo "$VERSION" ; exit 0 ;;
 					warning=?*) OPT_WARNING="$LONG_OPTARG" ;;
 
-					autoclean*|critical*|download*|enable*|lists*|mail*|repo*|remove*|sleep*|unattended*|warning*)
+					autoclean*|critical*|download*|enable*|lists*|mail*|repo*|remove*|sleep*|unattended*|warning*|skip-repo*)
 						echo "Option '--$OPTARG' requires an argument!" >&2
 						exit 3
 						;;
 
-					anacron*|short-description*|dry-run*|help*|reboot*|security*|systemd-timers*|version*)
+					anacron*|short-description*|dry-run*|help*|reboot*|security*|systemd-timers*|version*|missing-repositories*)
 						echo "No argument allowed for the option '--$OPTARG'!" >&2
 						exit 4
 						;;
@@ -247,6 +249,41 @@ _getopts() {
 
 _get_config() {
 	eval $(apt-config shell "$2" "$1")
+}
+
+_missing_repo() {
+	uuv_minimum="2.8"
+	uuv_current=$(dpkg-query -f='${Version}\n' --show unattended-upgrades)
+	if $(dpkg --compare-versions "$uuv_current" "lt" "$uuv_minimum"); then
+		echo "UNKNOWN - unattended-upgrades with Version: $uuv_current too old!"
+	else
+		response=`unattended-upgrades "-d" "--dry-run" | grep "Marking not allowed" | perl -pe "s/.*site='(.+?)'.*/\1/"`
+		if [ -n "$response" ]; then
+			unused_site_found=0
+			oldIFS=$IFS
+			IFS=,     # configure the split part to use , as the delimiter
+			set -f    # disable the glob part
+			set -- $OPT_SKIP_REPO # $1 is split on : and parts are stored in $1, $2...
+			IFS=$oldIFS
+			matched_sites=0
+			reported_repos=""
+			for r in ${response}; do
+				marker=0
+    			for i in ${@}; do
+					if [ "${r}" = "${i}" ] ; then
+						matched_sites=1
+						marker=1
+					fi
+				done
+				if [ $marker -eq 0 ]; then reported_repos="$reported_repos $r"; unused_site_found=1; fi
+			done
+			if [ $matched_sites -eq 0 ]; then reported_repos=$response; unused_site_found=1; fi
+			if [ $unused_site_found -eq 1 ]; then 
+				echo "WARNING - Some active package repositories are not covered by unattended upgrades: "$reported_repos
+				exit
+			fi
+		fi
+	fi
 }
 
 _check_config() {
@@ -380,6 +417,16 @@ configured to handle updates for custom repository '${OPT_CUSTOM_REPO}'."
 		_check_systemd_timer apt-daily.timer
 		_check_systemd_timer apt-daily-upgrade.timer
 	fi
+
+	if [ -n "$OPT_MISSING_REPO" ]; then
+		_missing_repo
+	fi
+
+	if [ -n "$OPT_SKIP_REPO" ] && [ -z "$OPT_MISSING_REPO" ]; then
+		echo "UNKNOWN - Use --skip-repo with --missing-repository"
+		exit
+	fi
+
 fi
 
 ##
