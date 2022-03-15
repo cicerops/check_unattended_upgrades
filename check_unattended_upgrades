@@ -260,7 +260,7 @@ _missing_repo() {
 		rsp=`unattended-upgrades "-d" "--dry-run" | grep "Marking not allowed" | perl -pe "s/.*site='(.+?)'.*/\1/"`
 		if [ -n "$rsp" ]; then
 			usf=0; ms=0; rr=""
-			oldIFS=$IFS; IFS=, ; set -f; set -- $OPT_SKIP_REPO;	IFS=$oldIFS
+			oldIFS=$IFS; IFS=, ; set -f; set -- $OPT_SKIP_REPO; IFS=$oldIFS
 			for r in ${rsp}; do
 				mk=0
     			for i in ${@}; do if [ "${r}" = "${i}" ] ; then ms=1; mk=1; fi;	done
