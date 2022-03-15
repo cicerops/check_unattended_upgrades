@@ -255,7 +255,7 @@ _missing_repo() {
 	uuv_m="2.8"
 	uuv_c=$(dpkg-query -f='${Version}\n' --show unattended-upgrades)
 	if $(dpkg --compare-versions "$uuv_c" "lt" "$uuv_m"); then
-		echo "UNKNOWN - unattended-upgrades with Version: $uuv_c too old!"
+		echo "UNKNOWN - unattended-upgrades with Version: $uuv_c too old!"; exit
 	else
 		rsp=`unattended-upgrades "-d" "--dry-run" | grep "Marking not allowed" | perl -pe "s/.*site='(.+?)'.*/\1/"`
 		if [ -n "$rsp" ]; then
