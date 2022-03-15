@@ -263,7 +263,7 @@ _missing_repo() {
 			oldIFS=$IFS; IFS=, ; set -f; set -- $OPT_SKIP_REPO; IFS=$oldIFS
 			for r in ${rsp}; do
 				mk=0
-    			for i in ${@}; do if [ "${r}" = "${i}" ] ; then ms=1; mk=1; fi;	done
+				for i in ${@}; do if [ "${r}" = "${i}" ] ; then ms=1; mk=1; fi;	done
 				if [ $mk -eq 0 ]; then rr="$rr $r"; usf=1; fi
 			done
 			if [ $ms -eq 0 ]; then rr=$rsp; usf=1; fi
