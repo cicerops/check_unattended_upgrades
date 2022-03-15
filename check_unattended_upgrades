@@ -252,34 +252,23 @@ _get_config() {
 }
 
 _missing_repo() {
-	uuv_minimum="2.8"
-	uuv_current=$(dpkg-query -f='${Version}\n' --show unattended-upgrades)
-	if $(dpkg --compare-versions "$uuv_current" "lt" "$uuv_minimum"); then
-		echo "UNKNOWN - unattended-upgrades with Version: $uuv_current too old!"
+	uuv_m="2.8"
+	uuv_c=$(dpkg-query -f='${Version}\n' --show unattended-upgrades)
+	if $(dpkg --compare-versions "$uuv_c" "lt" "$uuv_m"); then
+		echo "UNKNOWN - unattended-upgrades with Version: $uuv_c too old!"
 	else
-		response=`unattended-upgrades "-d" "--dry-run" | grep "Marking not allowed" | perl -pe "s/.*site='(.+?)'.*/\1/"`
-		if [ -n "$response" ]; then
-			unused_site_found=0
-			oldIFS=$IFS
-			IFS=,     # configure the split part to use , as the delimiter
-			set -f    # disable the glob part
-			set -- $OPT_SKIP_REPO # $1 is split on : and parts are stored in $1, $2...
-			IFS=$oldIFS
-			matched_sites=0
-			reported_repos=""
-			for r in ${response}; do
-				marker=0
-    			for i in ${@}; do
-					if [ "${r}" = "${i}" ] ; then
-						matched_sites=1
-						marker=1
-					fi
-				done
-				if [ $marker -eq 0 ]; then reported_repos="$reported_repos $r"; unused_site_found=1; fi
+		rsp=`unattended-upgrades "-d" "--dry-run" | grep "Marking not allowed" | perl -pe "s/.*site='(.+?)'.*/\1/"`
+		if [ -n "$rsp" ]; then
+			usf=0; ms=0; rr=""
+			oldIFS=$IFS; IFS=, ; set -f; set -- $OPT_SKIP_REPO;	IFS=$oldIFS
+			for r in ${rsp}; do
+				mk=0
+    			for i in ${@}; do if [ "${r}" = "${i}" ] ; then ms=1; mk=1; fi;	done
+				if [ $mk -eq 0 ]; then rr="$rr $r"; usf=1; fi
 			done
-			if [ $matched_sites -eq 0 ]; then reported_repos=$response; unused_site_found=1; fi
-			if [ $unused_site_found -eq 1 ]; then 
-				echo "WARNING - Some active package repositories are not covered by unattended upgrades: "$reported_repos
+			if [ $ms -eq 0 ]; then rr=$rsp; usf=1; fi
+			if [ $usf -eq 1 ]; then 
+				echo "WARNING - Some active package repositories are not covered by unattended upgrades: "$rr
 				exit
 			fi
 		fi
